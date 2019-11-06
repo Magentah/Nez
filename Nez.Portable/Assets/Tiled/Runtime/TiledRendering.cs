@@ -71,7 +71,7 @@ namespace Nez.Tiled
 				if (tile == null)
 					continue;
 
-				RenderTile(tile, batcher, position, scale, tileWidth, tileHeight, color, layerDepth);
+				RenderTile(tile, batcher, position, scale, tileWidth, tileHeight, color, layerDepth, layer.Map.Orientation);
 			}
 		}
 
@@ -90,6 +90,12 @@ namespace Nez.Tiled
 				return;
 
 			position += layer.Offset;
+
+            if (layer.Map.Orientation == OrientationType.Isometric)
+            {
+                position.X += (layer.Map.Width * (layer.Map.MaxTileWidth * scale.X) / 2) + layer.Map.MaxTileWidth;
+                position.Y += (layer.Map.MaxTileHeight * scale.Y) / 2;
+            }
 
 			// offset it by the entity position since the tilemap will always expect positions in its own coordinate space
 			cameraClipBounds.Location -= position;
@@ -127,13 +133,13 @@ namespace Nez.Tiled
 				{
 					var tile = layer.GetTile(x, y);
 					if (tile != null)
-						RenderTile(tile, batcher, position, scale, tileWidth, tileHeight, color, layerDepth);
+						RenderTile(tile, batcher, position, scale, tileWidth, tileHeight, color, layerDepth, layer.Map.Orientation);
 				}
 			}
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static void RenderTile(TmxLayerTile tile, Batcher batcher, Vector2 position, Vector2 scale, float tileWidth, float tileHeight, Color color, float layerDepth)
+		public static void RenderTile(TmxLayerTile tile, Batcher batcher, Vector2 position, Vector2 scale, float tileWidth, float tileHeight, Color color, float layerDepth, OrientationType orientation)
 		{
 			var gid = tile.Gid;
 
@@ -145,10 +151,27 @@ namespace Nez.Tiled
 
 			var sourceRect = tile.Tileset.TileRegions[gid];
 
-			// for the y position, we need to take into account if the tile is larger than the tileHeight and shift. Tiled uses
-			// a bottom-left coordinate system and MonoGame a top-left
-			var tx = tile.X * tileWidth;
-			var ty = tile.Y * tileHeight;
+            // for the y position, we need to take into account if the tile is larger than the tileHeight and shift. Tiled uses
+            // a bottom-left coordinate system and MonoGame a top-left
+            float tx;
+            float ty;
+
+            switch (orientation)
+            {
+                default:
+                case OrientationType.Orthogonal:
+                    {
+                        tx = tile.X * tileWidth;
+                        ty = tile.Y * tileHeight;
+                        break;
+                    }
+                case OrientationType.Isometric:
+                    {
+                        tx = (tile.X - tile.Y) * (tileWidth / 2);
+                        ty = (tile.Y + tile.X) * (tileHeight / 2);
+                        break;
+                    }
+            }
 			var rotation = 0f;
 
 			var spriteEffects = SpriteEffects.None;
